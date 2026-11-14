@@ -1,0 +1,6 @@
+{
+  "name": "TerraShift: NASA Field Shift Decision-Support Tool",
+  "description": "NASA Earth Observation and Soil Resilience agronomic co-pilot fusing SMAP, GPM, ECOSTRESS, MODIS, and SRTM telemetry with two-stage AI crop rotation planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
