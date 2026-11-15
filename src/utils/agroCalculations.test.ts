@@ -8,6 +8,7 @@ import {
   computePhWarnings,
   computeTopographicErosionScore,
   evaluateClimateStressTest,
+  parseAndValidateCoordinates,
 } from './agroCalculations';
 import type { FarmContext, NasaTelemetryPayload } from '../types/agro';
 
@@ -154,4 +155,29 @@ test('deterministic fallback strategies produce complete 12-month calendars and 
     assert.ok(strat.nasaEvidenceUsed.length >= 3);
     assert.ok(strat.informationGapsAndRisks.length >= 2);
   }
+});
+
+test('parseAndValidateCoordinates handles valid decimals, comma-separated paste, and out-of-bounds errors', () => {
+  const valid = parseAndValidateCoordinates('0.34764', '32.58254');
+  assert.equal(valid.ok, true);
+  if (valid.ok) {
+    assert.equal(valid.lat, 0.3476);
+    assert.equal(valid.lon, 32.5825);
+  }
+
+  const pasted = parseAndValidateCoordinates('36.7783, -119.4179', '');
+  assert.equal(pasted.ok, true);
+  if (pasted.ok) {
+    assert.equal(pasted.lat, 36.7783);
+    assert.equal(pasted.lon, -119.4179);
+  }
+
+  const badLat = parseAndValidateCoordinates('95', '32');
+  assert.equal(badLat.ok, false);
+
+  const badLon = parseAndValidateCoordinates('12', '-190');
+  assert.equal(badLon.ok, false);
+
+  const nonNum = parseAndValidateCoordinates('abc', '32');
+  assert.equal(nonNum.ok, false);
 });

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import http from 'node:http';
 import path from 'node:path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
@@ -164,6 +165,7 @@ const STRATEGIES_SCHEMA = {
 
 async function startServer() {
   const app = express();
+  const httpServer = http.createServer(app);
   app.use(express.json({ limit: '2mb' }));
 
   app.get('/api/health', (_req, res) => {
@@ -324,14 +326,19 @@ Rules:
     });
   } else {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        ws: {
+          server: httpServer,
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`TerraShift server running on http://localhost:${PORT}`);
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`CropShift server running on http://localhost:${PORT}`);
   });
 }
 

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { AlertTriangle, CheckCircle2, Compass, Layers, MapPin, Plus, SlidersHorizontal, Sparkles } from 'lucide-react';
 import {
   CROP_OPTIONS,
@@ -9,7 +9,7 @@ import {
   SOIL_TEXTURE_OPTIONS,
 } from '../data/presets';
 import type { FarmContext, LanguageMode, NasaTelemetryPayload, RegionalPreset, SoilTexture } from '../types/agro';
-import { computePhWarnings } from '../utils/agroCalculations';
+import { computePhWarnings, parseAndValidateCoordinates } from '../utils/agroCalculations';
 
 interface FarmMapAndInputsProps {
   farm: FarmContext;
@@ -18,13 +18,13 @@ interface FarmMapAndInputsProps {
   isLoadingCalibration: boolean;
   languageMode: LanguageMode;
   onSelectPreset: (preset: RegionalPreset) => void;
-  onSelectCoordinates: (lat: number, lon: number) => void;
+  onSelectCoordinates: (lat: number, lon: number, customLabel?: string) => void;
   onUpdateFarm: (patch: Partial<FarmContext>) => void;
   onRunCalibration: () => void;
 }
 
 const fieldPinIcon = L.divIcon({
-  className: 'terrashift-map-pin',
+  className: 'cropshift-map-pin',
   html: `<div style="width:18px;height:18px;border-radius:9999px;background:#10b981;border:3px solid #080c0b;box-shadow:0 0 0 2px rgba(16,185,129,0.55);"></div>`,
   iconSize: [18, 18],
   iconAnchor: [9, 9],
@@ -33,17 +33,23 @@ const fieldPinIcon = L.divIcon({
 function MapInteractionLayer({
   lat,
   lon,
+  altitude,
+  targetZoom,
   onSelectCoordinates,
 }: {
   lat: number;
   lon: number;
-  onSelectCoordinates: (lat: number, lon: number) => void;
+  altitude: number;
+  targetZoom: number | null;
+  onSelectCoordinates: (lat: number, lon: number, customLabel?: string) => void;
 }) {
   const map = useMap();
+  const markerRef = useRef<L.Marker | null>(null);
 
   useEffect(() => {
-    map.setView([lat, lon], map.getZoom() < 5 ? 7 : map.getZoom(), { animate: true });
-  }, [lat, lon, map]);
+    const zoom = targetZoom ?? (map.getZoom() < 5 ? 7 : map.getZoom());
+    map.setView([lat, lon], zoom, { animate: true });
+  }, [lat, lon, targetZoom, map]);
 
   useMapEvents({
     click(e) {
@@ -51,7 +57,34 @@ function MapInteractionLayer({
     },
   });
 
-  return <Marker position={[lat, lon]} icon={fieldPinIcon} />;
+  const eventHandlers = useMemo(
+    () => ({
+      dragend() {
+        const marker = markerRef.current;
+        if (marker) {
+          const pos = marker.getLatLng();
+          onSelectCoordinates(Number(pos.lat.toFixed(4)), Number(pos.lng.toFixed(4)));
+        }
+      },
+    }),
+    [onSelectCoordinates],
+  );
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[lat, lon]}
+      icon={fieldPinIcon}
+      draggable={true}
+      eventHandlers={eventHandlers}
+    >
+      <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+        <span className="font-mono text-[11px]">
+          {lat.toFixed(4)}°, {lon.toFixed(4)}° · {altitude}m
+        </span>
+      </Tooltip>
+    </Marker>
+  );
 }
 
 export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
@@ -66,9 +99,33 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
   onRunCalibration,
 }) => {
   const [customCrop, setCustomCrop] = useState('');
+  const [latInput, setLatInput] = useState(farm.lat.toFixed(4));
+  const [lonInput, setLonInput] = useState(farm.lon.toFixed(4));
+  const [coordError, setCoordError] = useState<string | null>(null);
+  const [mapZoomHint, setMapZoomHint] = useState<number | null>(null);
+
+  // Sync coordinate text inputs when preset, map click, or pin drag changes farm coords
+  useEffect(() => {
+    setLatInput(farm.lat.toFixed(4));
+    setLonInput(farm.lon.toFixed(4));
+    setCoordError(null);
+  }, [farm.lat, farm.lon]);
+
   const phWarning = useMemo(() => computePhWarnings(farm.soilPh), [farm.soilPh]);
 
   const phPercent = ((farm.soilPh - 4.0) / (8.5 - 4.0)) * 100;
+
+  const handleCoordinateJump = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseAndValidateCoordinates(latInput, lonInput);
+    if (!parsed.ok) {
+      setCoordError(parsed.error);
+      return;
+    }
+    setCoordError(null);
+    setMapZoomHint(12);
+    onSelectCoordinates(parsed.lat, parsed.lon);
+  };
 
   const toggleCrop = (crop: string) => {
     const exists = farm.currentCrops.includes(crop);
@@ -125,7 +182,7 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
 
       {/* Quick Regional Presets */}
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
             <Compass className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
             Quick Regional Presets
@@ -141,7 +198,10 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
               <button
                 key={preset.id}
                 type="button"
-                onClick={() => onSelectPreset(preset)}
+                onClick={() => {
+                  setMapZoomHint(7);
+                  onSelectPreset(preset);
+                }}
                 className={`text-left px-3 py-2.5 rounded-lg border text-xs transition-colors whitespace-nowrap truncate focus-visible:outline-2 focus-visible:outline-emerald-400 ${
                   isActive
                     ? 'bg-emerald-950/60 border-emerald-500/70 text-emerald-200 font-semibold'
@@ -154,6 +214,50 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
             );
           })}
         </div>
+      </div>
+
+      {/* Direct Lat/Lon Coordinates */}
+      <div className="space-y-2">
+        <form onSubmit={handleCoordinateJump} className="flex flex-wrap sm:flex-nowrap items-end gap-2">
+          <div className="flex-1 min-w-[100px]">
+            <label htmlFor="lat-input" className="block text-[11px] font-mono text-slate-400 mb-1">
+              Latitude
+            </label>
+            <input
+              id="lat-input"
+              type="text"
+              value={latInput}
+              onChange={(e) => setLatInput(e.target.value)}
+              placeholder="0.3476"
+              className="w-full bg-[#121c19] border border-[#22322d] rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-100 tabular-nums focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          <div className="flex-1 min-w-[100px]">
+            <label htmlFor="lon-input" className="block text-[11px] font-mono text-slate-400 mb-1">
+              Longitude
+            </label>
+            <input
+              id="lon-input"
+              type="text"
+              value={lonInput}
+              onChange={(e) => setLonInput(e.target.value)}
+              placeholder="32.5825"
+              className="w-full bg-[#121c19] border border-[#22322d] rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-100 tabular-nums focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-3 py-1.5 rounded-lg bg-[#16231f] border border-[#293d37] text-xs font-medium text-cyan-300 hover:bg-[#1c2d28] whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            Go to Pin
+          </button>
+        </form>
+
+        {coordError && (
+          <p role="alert" className="text-[11px] text-rose-300 font-medium">
+            {coordError}
+          </p>
+        )}
       </div>
 
       {/* Interactive Leaflet Map */}
@@ -171,12 +275,17 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
           <MapInteractionLayer
             lat={farm.lat}
             lon={farm.lon}
-            onSelectCoordinates={onSelectCoordinates}
+            altitude={farm.altitude}
+            targetZoom={mapZoomHint}
+            onSelectCoordinates={(lat, lon, label) => {
+              setMapZoomHint(null);
+              onSelectCoordinates(lat, lon, label);
+            }}
           />
         </MapContainer>
         <div className="pointer-events-none absolute bottom-2.5 left-2.5 z-[400] bg-[#080c0b]/90 border border-[#22322d] px-2.5 py-1 rounded text-[11px] font-mono text-slate-300 flex items-center gap-1.5">
           <MapPin className="w-3 h-3 text-emerald-400" aria-hidden="true" />
-          <span>{isLoadingTelemetry ? 'Fetching NASA POWER + SRTM...' : 'Click map to sample coordinates'}</span>
+          <span>{isLoadingTelemetry ? 'Fetching NASA POWER + SRTM...' : 'Click map or drag pin to exact plot'}</span>
         </div>
       </div>
 

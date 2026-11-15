@@ -138,10 +138,10 @@ export default function App() {
     loadLocationTelemetry(preset.lat, preset.lon, preset.defaultCrops, preset);
   };
 
-  const handleSelectCoordinates = (lat: number, lon: number) => {
+  const handleSelectCoordinates = (lat: number, lon: number, customLabel?: string) => {
     setFarm((prev) => ({
       ...prev,
-      locationName: `Custom Field (${lat.toFixed(2)}°, ${lon.toFixed(2)}°)`,
+      locationName: customLabel || `Custom Field (${lat.toFixed(4)}°, ${lon.toFixed(4)}°)`,
       lat,
       lon,
     }));
@@ -229,7 +229,7 @@ export default function App() {
             href="#top"
             className="text-lg font-bold tracking-tight text-slate-50 whitespace-nowrap shrink-0"
           >
-            TerraShift
+            CropShift
           </a>
 
           <nav aria-label="Workspace Sections" className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
@@ -425,7 +425,7 @@ export default function App() {
 
       <footer className="border-t border-[#16221e] bg-[#0a100e] mt-10">
         <div className="max-w-[1440px] mx-auto px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-          <span>TerraShift Agronomic Decision-Support Co-Pilot</span>
+          <span>CropShift Agronomic Decision-Support Co-Pilot</span>
           <span>Data: NASA POWER · SMAP · GPM · ECOSTRESS · MODIS · SRTM · ISRIC SoilGrids</span>
         </div>
       </footer>

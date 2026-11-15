@@ -20,6 +20,62 @@ export function roundTo(val: number, decimals = 1): number {
   return Math.round(val * factor) / factor;
 }
 
+export interface CoordinateParseResult {
+  ok: true;
+  lat: number;
+  lon: number;
+}
+export interface CoordinateParseError {
+  ok: false;
+  error: string;
+}
+
+/**
+ * Parses and validates decimal coordinates (supports pasting "lat, lon" into latRaw).
+ */
+export function parseAndValidateCoordinates(
+  latRaw: string,
+  lonRaw: string,
+): CoordinateParseResult | CoordinateParseError {
+  const trimmedLat = latRaw.trim();
+  const trimmedLon = lonRaw.trim();
+
+  let latStr = trimmedLat;
+  let lonStr = trimmedLon;
+
+  // Support pasting "lat, lon" into the latitude input
+  if (trimmedLat.includes(',')) {
+    const parts = trimmedLat.split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length === 2) {
+      latStr = parts[0];
+      lonStr = parts[1];
+    }
+  }
+
+  if (!latStr || !lonStr) {
+    return { ok: false, error: 'Enter both latitude and longitude.' };
+  }
+
+  const lat = Number(latStr);
+  const lon = Number(lonStr);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return { ok: false, error: 'Coordinates must be valid decimal numbers (e.g. 0.3476, 32.5825).' };
+  }
+  if (lat < -90 || lat > 90) {
+    return { ok: false, error: 'Latitude must be between -90° and 90°.' };
+  }
+  if (lon < -180 || lon > 180) {
+    return { ok: false, error: 'Longitude must be between -180° and 180°.' };
+  }
+
+  return {
+    ok: true,
+    lat: roundTo(lat, 4),
+    lon: roundTo(lon, 4),
+  };
+}
+
 /**
  * Evaluates Soil pH status and returns actionable agronomic nutrient lock-up warnings.
  */
@@ -174,7 +230,7 @@ export function computeNdviAndBareSoilWindows(
 }
 
 /**
- * Classifies SoilGrids clay/sand percentages into TerraShift's 4 soil texture classes.
+ * Classifies SoilGrids clay/sand percentages into CropShift's 4 soil texture classes.
  */
 export function classifySoilTexture(clayPct: number, sandPct: number, socGKg: number): SoilTexture {
   if (socGKg >= 35 && clayPct >= 20 && sandPct <= 45) return 'Volcanic Ash';
