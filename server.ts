@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express from 'express';
 import http from 'node:http';
 import path from 'node:path';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import type {
   CalibrationAnswer,
@@ -10,13 +9,13 @@ import type {
   FarmContext,
   NasaTelemetryPayload,
   RotationStrategy,
-} from './src/types/agro';
+} from './src/types/agro.ts';
 import {
   buildDeterministicCalibrationQuestions,
   buildDeterministicStrategies,
-} from './src/utils/agroCalculations';
+} from './src/utils/agroCalculations.ts';
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 function createGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -325,6 +324,7 @@ Rules:
       res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
@@ -338,7 +338,7 @@ Rules:
   }
 
   httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`CropShift server running on http://localhost:${PORT}`);
+    console.log(`Crop Stat server running on http://localhost:${PORT}`);
   });
 }
 

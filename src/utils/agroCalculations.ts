@@ -1,4 +1,4 @@
-import { DAYS_IN_MONTH, MONTHS_SHORT } from '../data/presets';
+import { DAYS_IN_MONTH, MONTHS_SHORT } from '../data/presets.ts';
 import type {
   CalibrationAnswer,
   CalibrationQuestion,
@@ -9,7 +9,7 @@ import type {
   RotationStrategy,
   SoilTexture,
   StressTestResult,
-} from '../types/agro';
+} from '../types/agro.ts';
 
 export function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val));
@@ -230,7 +230,7 @@ export function computeNdviAndBareSoilWindows(
 }
 
 /**
- * Classifies SoilGrids clay/sand percentages into CropShift's 4 soil texture classes.
+ * Classifies SoilGrids clay/sand percentages into Crop Stat's 4 soil texture classes.
  */
 export function classifySoilTexture(clayPct: number, sandPct: number, socGKg: number): SoilTexture {
   if (socGKg >= 35 && clayPct >= 20 && sandPct <= 45) return 'Volcanic Ash';

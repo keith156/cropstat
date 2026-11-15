@@ -1,4 +1,4 @@
-import type { RegionalPreset, SoilTexture } from '../types/agro';
+import type { RegionalPreset, SoilTexture } from '../types/agro.ts';
 
 export const REGIONAL_PRESETS: RegionalPreset[] = [
   {
