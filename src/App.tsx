@@ -20,6 +20,7 @@ import { CalibrationQuestionsModal } from './components/CalibrationQuestionsModa
 import { RotationComparisonMatrix } from './components/RotationComparisonMatrix';
 import { ClimateStressTester } from './components/ClimateStressTester';
 import { FarmerSimpleFlow } from './components/FarmerSimpleFlow';
+import { TeamAndPartnerStrip } from './components/TeamAndPartnerStrip';
 
 const INITIAL_PRESET = REGIONAL_PRESETS[0];
 
@@ -230,12 +231,17 @@ export default function App() {
     <div className="min-h-screen bg-[#080c0b] text-slate-100 flex flex-col">
       {/* Strict 3-Zone Top Navigation Bar */}
       <header className="border-b border-[#1b2924] bg-[#0a100e]/95 sticky top-0 z-40 backdrop-blur-sm">
-        <div className="max-w-[1440px] mx-auto px-5 sm:px-6 h-14 flex items-center justify-between gap-8">
+        <div className="max-w-[1440px] mx-auto px-5 sm:px-6 h-16 flex items-center justify-between gap-6">
           <a
             href="#top"
-            className="text-lg font-bold tracking-tight text-slate-50 whitespace-nowrap shrink-0"
+            aria-label="Crop Sat"
+            className="flex items-center shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded-md"
           >
-            Crop Sat
+            <img
+              src="/assets/aistudio/Gemini_Generated_Image_e0mwpme0mwpme0mw-removebg-preview_4b7b10ee.png"
+              alt="Crop Sat — From Satellite Insights to Sustainable Farming"
+              className="h-11 sm:h-12 w-auto object-contain select-none"
+            />
           </a>
 
           {languageMode === 'farmer' ? (
@@ -504,14 +510,25 @@ export default function App() {
         )}
       </main>
 
-      <footer className="border-t border-[#16221e] bg-[#0a100e] mt-10">
-        <div className="max-w-[1440px] mx-auto px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+      <TeamAndPartnerStrip />
+
+      <footer className="border-t border-[#16221e] bg-[#0a100e]">
+        <div className="max-w-[1440px] mx-auto px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
           <span>
             {languageMode === 'farmer'
               ? 'Crop Sat · Simple Farm Planning Helper'
               : 'Crop Sat Agronomic Decision-Support Co-Pilot'}
           </span>
           <span>
+            For more info:{' '}
+            <a
+              href="mailto:keithjosh87@gmail.com"
+              className="text-emerald-300 hover:text-emerald-200 underline underline-offset-2 transition-colors"
+            >
+              keithjosh87@gmail.com
+            </a>
+          </span>
+          <span className="text-slate-500">
             {languageMode === 'farmer'
               ? 'Local weather, rain & soil advice tailored to your field'
               : 'Data: NASA POWER · SMAP · GPM · ECOSTRESS · MODIS · SRTM · ISRIC SoilGrids'}
