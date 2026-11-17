@@ -181,3 +181,36 @@ test('parseAndValidateCoordinates handles valid decimals, comma-separated paste,
   const nonNum = parseAndValidateCoordinates('abc', '32');
   assert.equal(nonNum.ok, false);
 });
+
+test('farmer plain-language mode avoids statistics, percentages, and satellite acronyms', () => {
+  const farm = createSampleFarm();
+  const telemetry = createSampleTelemetry(farm);
+
+  const phWarn = computePhWarnings(5.4, 'farmer');
+  assert.doesNotMatch(phWarn.label + ' ' + phWarn.detail, /pH|Al³|Ferralsol|Molybdenum/i);
+
+  const questions = buildDeterministicCalibrationQuestions(farm, telemetry, 'farmer');
+  assert.equal(questions.length, 3);
+  for (const q of questions) {
+    const combined = `${q.question} ${q.whyWeAsk} ${q.quickOptions.join(' ')}`;
+    assert.doesNotMatch(combined, /SMAP|GPM|MODIS|ECOSTRESS|SRTM|NDVI|ESI|%|mm\/yr|pH|\d+m/i);
+  }
+
+  const strategies = buildDeterministicStrategies(farm, telemetry, [], 'farmer');
+  assert.equal(strategies.length, 3);
+  for (const strat of strategies) {
+    assert.equal(strat.monthlyCalendar.length, 12);
+    const textBlob = [
+      strat.name,
+      strat.tagline,
+      strat.whySuggested,
+      ...strat.nasaEvidenceUsed,
+      strat.soilAndAgronomicMechanics.phCompatibility,
+      strat.soilAndAgronomicMechanics.nitrogenCycling,
+      strat.soilAndAgronomicMechanics.erosionAndInfiltration,
+      strat.soilAndAgronomicMechanics.pestCycleDisruption,
+      ...strat.informationGapsAndRisks,
+    ].join(' ');
+    assert.doesNotMatch(textBlob, /SMAP|GPM|MODIS|ECOSTRESS|SRTM|GRACE|NDVI|ESI|%|kg N\/ha|mm\/|°C|pH \d/i);
+  }
+});

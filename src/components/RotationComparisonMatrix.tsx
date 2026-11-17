@@ -44,6 +44,24 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
   const setTab = (id: string, tab: DetailTab) =>
     setActiveTabs((prev) => ({ ...prev, [id]: tab }));
 
+  const getQualitativeRating = (score: number) => {
+    if (score >= 80) return { text: 'Great Fit', color: 'text-emerald-300' };
+    if (score >= 65) return { text: 'Good Option', color: 'text-cyan-300' };
+    return { text: 'Risky Choice', color: 'text-amber-300' };
+  };
+
+  const getMetricWord = (score: number) => {
+    if (score >= 78) return { text: 'Strong', color: 'text-emerald-300' };
+    if (score >= 52) return { text: 'Medium', color: 'text-amber-300' };
+    return { text: 'Weak', color: 'text-rose-300' };
+  };
+
+  const getFarmerStressLabel = (status: StressTestResult['survivalStatus']) => {
+    if (status === 'Resilient') return 'Holds Up Well';
+    if (status === 'Strained') return 'Needs Extra Mulch';
+    return 'High Risk of Crop Loss';
+  };
+
   return (
     <section
       id="strategies"
@@ -53,10 +71,12 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-mono text-emerald-400">
-            04. {isFarmer ? 'Compare 3 Field Plans Side by Side' : 'Stage B · Multi-Strategy Agronomic Synthesis'}
+            04. {isFarmer ? 'Your 3 Simple Crop Plans' : 'Stage B · Multi-Strategy Agronomic Synthesis'}
           </p>
           <h2 className="text-xl font-semibold text-slate-100 mt-0.5">
-            3-Year Crop Rotation Strategies & Bare-Soil Coverage Matrix
+            {isFarmer
+              ? 'Compare 3 Easy Planting Plans for Your Field'
+              : '3-Year Crop Rotation Strategies & Bare-Soil Coverage Matrix'}
           </h2>
         </div>
 
@@ -81,8 +101,12 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
             <span className="w-2.5 h-2.5 rounded-xs bg-rose-500 inline-block" aria-hidden="true" />
             Bare Soil
           </span>
-          <span aria-hidden="true">·</span>
-          <span>{aiSourceLabel}</span>
+          {!isFarmer && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{aiSourceLabel}</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -102,12 +126,14 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                 : 'text-amber-300 border-amber-700/60';
 
           const impactRows = [
-            { label: isFarmer ? 'Soil Life & Organic Matter' : 'Soil Health Score', value: strategy.impactMetrics.soilHealthScore },
-            { label: isFarmer ? 'Moisture Saved in Dry Spells' : 'Water Conservation', value: strategy.impactMetrics.waterConservationScore },
-            { label: isFarmer ? 'Topsoil Erosion Protection' : 'Erosion Reduction', value: strategy.impactMetrics.erosionReductionScore },
-            { label: isFarmer ? 'Natural Nitrogen Boost' : 'Nitrogen Balance', value: strategy.impactMetrics.nitrogenBalanceScore },
-            { label: isFarmer ? 'Market & Food Reliability' : 'Market Resilience', value: strategy.impactMetrics.marketResilienceScore },
+            { label: isFarmer ? 'Soil Strength' : 'Soil Health Score', value: strategy.impactMetrics.soilHealthScore },
+            { label: isFarmer ? 'Water Saved' : 'Water Conservation', value: strategy.impactMetrics.waterConservationScore },
+            { label: isFarmer ? 'Stops Wash-Away' : 'Erosion Reduction', value: strategy.impactMetrics.erosionReductionScore },
+            { label: isFarmer ? 'Natural Soil Food' : 'Nitrogen Balance', value: strategy.impactMetrics.nitrogenBalanceScore },
+            { label: isFarmer ? 'Reliable Food & Cash' : 'Market Resilience', value: strategy.impactMetrics.marketResilienceScore },
           ];
+
+          const rating = getQualitativeRating(displayScore);
 
           return (
             <article
@@ -131,15 +157,26 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                     </p>
                   </div>
 
-                  <div className={`shrink-0 text-right border rounded-lg px-2.5 py-1.5 bg-[#121c19] ${accentColor}`}>
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                      Suitability
+                  {isFarmer ? (
+                    <div className={`shrink-0 text-right border rounded-lg px-2.5 py-1.5 bg-[#121c19] ${accentColor}`}>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-400">
+                        Rating
+                      </div>
+                      <div className={`text-sm font-semibold leading-tight ${rating.color}`}>
+                        {rating.text}
+                      </div>
                     </div>
-                    <div className="text-xl font-mono font-bold tabular-nums leading-tight">
-                      {displayScore}
-                      <span className="text-xs font-normal text-slate-400">/100</span>
+                  ) : (
+                    <div className={`shrink-0 text-right border rounded-lg px-2.5 py-1.5 bg-[#121c19] ${accentColor}`}>
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                        Suitability
+                      </div>
+                      <div className="text-xl font-mono font-bold tabular-nums leading-tight">
+                        {displayScore}
+                        <span className="text-xs font-normal text-slate-400">/100</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Climate Stress Delta Banner */}
@@ -164,10 +201,27 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                       />
                     )}
                     <div className="space-y-0.5">
-                      <div className="font-mono font-semibold tabular-nums">
-                        {stress.survivalStatus} · Yield Retention {stress.yieldRetentionPct}% ({stress.scoreDelta >= 0 ? '+' : ''}{stress.scoreDelta} pts)
-                      </div>
-                      <p className="text-[11px] opacity-90">{stress.stressWarning}</p>
+                      {isFarmer ? (
+                        <>
+                          <div className="font-semibold">
+                            {getFarmerStressLabel(stress.survivalStatus)}
+                          </div>
+                          <p className="text-[11px] opacity-90">
+                            {stress.survivalStatus === 'Resilient'
+                              ? 'This plan keeps enough green cover and roots to protect your harvest in harsh weather.'
+                              : stress.survivalStatus === 'Strained'
+                                ? 'Crops will feel the heat or dry spell — keep extra mulch between rows.'
+                                : 'High chance of dry soil or crop loss under tough weather.'}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="font-mono font-semibold tabular-nums">
+                            {stress.survivalStatus} · Yield Retention {stress.yieldRetentionPct}% ({stress.scoreDelta >= 0 ? '+' : ''}{stress.scoreDelta} pts)
+                          </div>
+                          <p className="text-[11px] opacity-90">{stress.stressWarning}</p>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -179,8 +233,8 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                 {/* 12-Month Visual Crop Rotation Timeline Bar */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                    <span>12-Month Rotation Calendar</span>
-                    <span>Click month for details</span>
+                    <span>{isFarmer ? '12-Month Planting Calendar' : '12-Month Rotation Calendar'}</span>
+                    <span>{isFarmer ? 'Tap a month' : 'Click month for details'}</span>
                   </div>
                   <div className="grid grid-cols-12 gap-1">
                     {strategy.monthlyCalendar.map((item, idx) => {
@@ -217,8 +271,12 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                       </div>
                       <div className="text-[11px] font-mono text-slate-400 tabular-nums">
                         <span>{activeMonth.stage}</span>
-                        <span className="mx-1.5" aria-hidden="true">·</span>
-                        <span>NDVI {activeMonth.ndviTarget.toFixed(2)}</span>
+                        {!isFarmer && (
+                          <>
+                            <span className="mx-1.5" aria-hidden="true">·</span>
+                            <span>NDVI {activeMonth.ndviTarget.toFixed(2)}</span>
+                          </>
+                        )}
                         <span className="mx-1.5" aria-hidden="true">·</span>
                         <span>{activeMonth.waterDemand} water</span>
                       </div>
@@ -228,28 +286,37 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
 
                 {/* 5-Axis Impact Comparison Bars */}
                 <div className="space-y-2 pt-1">
-                  {impactRows.map((row) => (
-                    <div key={row.label} className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-300">{row.label}</span>
-                        <span className="font-mono text-slate-200 font-semibold tabular-nums">
-                          {row.value}/100
-                        </span>
+                  {impactRows.map((row) => {
+                    const wordRating = getMetricWord(row.value);
+                    return (
+                      <div key={row.label} className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-300">{row.label}</span>
+                          {isFarmer ? (
+                            <span className={`font-semibold ${wordRating.color}`}>
+                              {wordRating.text}
+                            </span>
+                          ) : (
+                            <span className="font-mono text-slate-200 font-semibold tabular-nums">
+                              {row.value}/100
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-1.5 w-full bg-[#18231f] rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              strategy.badgeColor === 'emerald'
+                                ? 'bg-emerald-400'
+                                : strategy.badgeColor === 'cyan'
+                                  ? 'bg-cyan-400'
+                                  : 'bg-amber-400'
+                            }`}
+                            style={{ width: `${row.value}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-1.5 w-full bg-[#18231f] rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            strategy.badgeColor === 'emerald'
-                              ? 'bg-emerald-400'
-                              : strategy.badgeColor === 'cyan'
-                                ? 'bg-cyan-400'
-                                : 'bg-amber-400'
-                          }`}
-                          style={{ width: `${row.value}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -267,7 +334,7 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    NASA Evidence
+                    {isFarmer ? 'Why It Helps' : 'NASA Evidence'}
                   </button>
                   <button
                     type="button"
@@ -280,7 +347,7 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    pH &amp; Altitude
+                    {isFarmer ? 'Soil & Pests' : 'pH & Altitude'}
                   </button>
                   <button
                     type="button"
@@ -293,7 +360,7 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    Extension Review
+                    {isFarmer ? 'Things to Check' : 'Extension Review'}
                   </button>
                 </div>
 
@@ -311,15 +378,21 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                 {activeTab === 'agronomy' && (
                   <dl className="space-y-2 text-xs text-slate-300 leading-relaxed">
                     <div>
-                      <dt className="font-semibold text-emerald-300">pH Compatibility</dt>
+                      <dt className="font-semibold text-emerald-300">
+                        {isFarmer ? 'Soil Match' : 'pH Compatibility'}
+                      </dt>
                       <dd className="text-slate-300">{strategy.soilAndAgronomicMechanics.phCompatibility}</dd>
                     </div>
                     <div>
-                      <dt className="font-semibold text-emerald-300">Nitrogen Cycling</dt>
+                      <dt className="font-semibold text-emerald-300">
+                        {isFarmer ? 'Natural Plant Food' : 'Nitrogen Cycling'}
+                      </dt>
                       <dd className="text-slate-300">{strategy.soilAndAgronomicMechanics.nitrogenCycling}</dd>
                     </div>
                     <div>
-                      <dt className="font-semibold text-emerald-300">Erosion &amp; Infiltration</dt>
+                      <dt className="font-semibold text-emerald-300">
+                        {isFarmer ? 'Water & Wash-Away' : 'Erosion & Infiltration'}
+                      </dt>
                       <dd className="text-slate-300">{strategy.soilAndAgronomicMechanics.erosionAndInfiltration}</dd>
                     </div>
                     <div>
@@ -333,7 +406,11 @@ export const RotationComparisonMatrix: React.FC<RotationComparisonMatrixProps> =
                   <div className="space-y-2 text-xs text-slate-300 leading-relaxed">
                     <div className="flex items-start gap-1.5 text-amber-300 font-medium">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
-                      <span>Review with your local agricultural extension officer:</span>
+                      <span>
+                        {isFarmer
+                          ? 'Check these locally before planting:'
+                          : 'Review with your local agricultural extension officer:'}
+                      </span>
                     </div>
                     <ul className="space-y-1.5">
                       {strategy.informationGapsAndRisks.map((gap, i) => (

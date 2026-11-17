@@ -7,6 +7,7 @@ import type {
   CalibrationAnswer,
   CalibrationQuestion,
   FarmContext,
+  LanguageMode,
   NasaTelemetryPayload,
   RotationStrategy,
 } from './src/types/agro.ts';
@@ -176,10 +177,12 @@ async function startServer() {
   });
 
   app.post('/api/ai/calibrate', async (req, res) => {
-    const { farmContext, nasaTelemetry } = req.body as {
+    const { farmContext, nasaTelemetry, languageMode } = req.body as {
       farmContext?: FarmContext;
       nasaTelemetry?: NasaTelemetryPayload;
+      languageMode?: LanguageMode;
     };
+    const mode: LanguageMode = languageMode === 'farmer' ? 'farmer' : 'scientist';
 
     if (!farmContext || !nasaTelemetry) {
       res.status(400).json({ error: 'Missing farmContext or nasaTelemetry' });
@@ -188,7 +191,7 @@ async function startServer() {
 
     const ai = createGeminiClient();
     if (!ai) {
-      const questions = buildDeterministicCalibrationQuestions(farmContext, nasaTelemetry);
+      const questions = buildDeterministicCalibrationQuestions(farmContext, nasaTelemetry, mode);
       res.json({ questions, source: 'fallback', modelUsed: 'agro-deterministic' });
       return;
     }
@@ -211,7 +214,15 @@ async function startServer() {
         },
       });
 
-      const systemInstruction = `You are a NASA Earth Observation Data Scientist & Practical Agronomist.
+      const systemInstruction = mode === 'farmer'
+        ? `You are a friendly local farm advisor talking directly to an everyday farmer.
+Return EXACTLY 3 simple, everyday questions to learn about their farm habits (what they do with leftover stalks after harvest, what manure/ash/lime/water they can get locally, and which beans or extra crops sell or feed their family best).
+STRICT RULES FOR FARMER PLAIN-LANGUAGE:
+- Use warm, very simple everyday words (grade 4–5 reading level).
+- DO NOT include ANY statistics, numbers, percentages, pH values, temperatures, millimeters, elevations, or scores in satelliteTrigger, question, whyWeAsk, or quickOptions.
+- DO NOT mention satellite or scientific acronyms (never say NASA, SMAP, GPM, ECOSTRESS, MODIS, SRTM, GRACE, NDVI, ESI, or Ferralsol).
+- Each quickOptions array must have 3-4 short, easy-to-tap everyday choices.`
+        : `You are a NASA Earth Observation Data Scientist & Practical Agronomist.
 Analyze the tension between the farmer's ground-truth inputs (soil pH, altitude, texture, current crops, priorities) and the NASA satellite telemetry.
 Return EXACTLY 3 hyper-specific diagnostic calibration questions to uncover things satellites cannot see (crop residue habits, local lime/manure access, subsurface hardpans, or local market buyers).
 Keep questions respectful, plain-spoken, and actionable. Each quickOptions array must have 3-4 short clickable answer choices.`;
@@ -229,17 +240,19 @@ Keep questions respectful, plain-spoken, and actionable. Each quickOptions array
 
       res.json({ questions: result.data, source: 'gemini', modelUsed: result.modelUsed });
     } catch {
-      const questions = buildDeterministicCalibrationQuestions(farmContext, nasaTelemetry);
+      const questions = buildDeterministicCalibrationQuestions(farmContext, nasaTelemetry, mode);
       res.json({ questions, source: 'fallback', modelUsed: 'agro-deterministic' });
     }
   });
 
   app.post('/api/ai/strategies', async (req, res) => {
-    const { farmContext, nasaTelemetry, calibrationAnswers } = req.body as {
+    const { farmContext, nasaTelemetry, calibrationAnswers, languageMode } = req.body as {
       farmContext?: FarmContext;
       nasaTelemetry?: NasaTelemetryPayload;
       calibrationAnswers?: CalibrationAnswer[];
+      languageMode?: LanguageMode;
     };
+    const mode: LanguageMode = languageMode === 'farmer' ? 'farmer' : 'scientist';
 
     if (!farmContext || !nasaTelemetry) {
       res.status(400).json({ error: 'Missing farmContext or nasaTelemetry' });
@@ -249,7 +262,7 @@ Keep questions respectful, plain-spoken, and actionable. Each quickOptions array
     const answers = calibrationAnswers ?? [];
     const ai = createGeminiClient();
     if (!ai) {
-      const strategies = buildDeterministicStrategies(farmContext, nasaTelemetry, answers);
+      const strategies = buildDeterministicStrategies(farmContext, nasaTelemetry, answers, mode);
       res.json({ strategies, source: 'fallback', modelUsed: 'agro-deterministic' });
       return;
     }
@@ -278,7 +291,19 @@ Keep questions respectful, plain-spoken, and actionable. Each quickOptions array
         },
       });
 
-      const systemInstruction = `You are a Principal Agronomic Systems Architect & NASA Earth Observation Specialist.
+      const systemInstruction = mode === 'farmer'
+        ? `You are a friendly practical farm advisor explaining 3 planting plans to an everyday farmer in super-simple language.
+Generate EXACTLY 3 Planting Plans in order:
+1) "Keep Your Current Way" — badgeColor: "amber" — simple honest look at keeping current crops with no changes.
+2) "Soil-Saving & Moisture Plan" — badgeColor: "emerald" — keeps green cover or mulch on the dirt all year using local beans/cover crops so rain does not wash soil away.
+3) "Balanced Income & Hardy Plan" — badgeColor: "cyan" — mixes reliable food/cash crops with hardy, fast-maturing varieties for dry spells.
+
+STRICT RULES FOR FARMER PLAIN-LANGUAGE:
+- Write name, tagline, whySuggested, nasaEvidenceUsed (plain "why it helps" bullets), soilAndAgronomicMechanics, and informationGapsAndRisks in warm, simple everyday words.
+- DO NOT put ANY statistics, numbers, percentages, pH numbers, kg/ha, mm, °C, meters, or NDVI numbers in ANY text string.
+- DO NOT mention satellite or scientific terms (no SMAP, GPM, ECOSTRESS, MODIS, SRTM, GRACE, NDVI, ESI, rhizobia, or Al3+).
+- Still populate numeric schema fields cleanly: each monthlyCalendar MUST have 12 entries ("Jan" to "Dec"), stage in ["Planting", "Growing", "Harvest", "Cover Crop", "Bare Soil"], waterDemand in ["Low", "Medium", "High"], ndviTarget between 0.15 and 0.90, and integer scores 0-100 in impactMetrics and suitabilityScore.`
+        : `You are a Principal Agronomic Systems Architect & NASA Earth Observation Specialist.
 Generate EXACTLY 3 Detailed Crop Rotation Strategies in order:
 1) "Baseline Continuation (Current System)" — badgeColor: "amber" — honest 3-year projection keeping current crops.
 2) "Soil-Regenerative & Water-Shield Rotation" — badgeColor: "emerald" — eliminates bare-soil erosion windows (<0.30 NDVI) using pH-matched nitrogen-fixing legumes & cover crops.
@@ -312,7 +337,7 @@ Rules:
 
       res.json({ strategies: normalized, source: 'gemini', modelUsed: result.modelUsed });
     } catch {
-      const strategies = buildDeterministicStrategies(farmContext, nasaTelemetry, answers);
+      const strategies = buildDeterministicStrategies(farmContext, nasaTelemetry, answers, mode);
       res.json({ strategies, source: 'fallback', modelUsed: 'agro-deterministic' });
     }
   });

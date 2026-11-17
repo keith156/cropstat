@@ -38,7 +38,220 @@ export const NasaTelemetryDashboard: React.FC<NasaTelemetryDashboardProps> = ({
   const inspectedMonth: MonthlyClimatePoint =
     hoveredMonthIdx !== null ? telemetry.monthly[hoveredMonthIdx] : telemetry.monthly[2];
 
-  // SVG Chart Geometry
+  if (isFarmer) {
+    const moistureHeadline =
+      telemetry.smapRootMoistureAvg >= 58
+        ? 'Good Soil Water Most Months'
+        : telemetry.smapRootMoistureAvg >= 42
+          ? 'Gets Dry Some Months'
+          : 'Dry Soil — Save Every Drop';
+
+    const moistureTip =
+      telemetry.smapDryMonths.length > 0
+        ? `Dry months to watch: ${telemetry.smapDryMonths.join(', ')}. Keep mulch on top to save water.`
+        : 'Your ground stays damp enough through most of the year.';
+
+    const heatHeadline =
+      telemetry.ecostressPeakTempC >= 33 || telemetry.ecostressHeatStressDays >= 45
+        ? 'Strong Sun & Hot Spells'
+        : telemetry.ecostressPeakTempC >= 28
+          ? 'Warm Sun & Mild Heat'
+          : 'Cool & Gentle Weather';
+
+    const heatTip =
+      telemetry.ecostressEsiAvg > 1.15
+        ? 'Plants lose water fast in dry weeks — plant leafy cover between rows to shade the soil.'
+        : 'Heat levels are comfortable for growing mixed food and cover crops.';
+
+    const rainHeadline =
+      telemetry.gpmSeasonality === 'Bimodal'
+        ? 'Two Rainy Seasons Each Year'
+        : telemetry.gpmSeasonality === 'Unimodal'
+          ? 'One Main Rainy Season'
+          : 'Low Rain — Dry Area';
+
+    const frostTip =
+      telemetry.gpmFrostRiskLevel === 'High' || telemetry.gpmFrostRiskLevel === 'Moderate'
+        ? 'Cold nights or frost can happen — protect young seedlings.'
+        : telemetry.gpmFrostRiskLevel === 'Low'
+          ? 'Rare chilly nights in cool months, otherwise mild.'
+          : 'No frost risk expected on your farm.';
+
+    const erosionHeadline =
+      telemetry.topographicErosionScore >= 65
+        ? 'High Soil Wash-Away Risk'
+        : telemetry.topographicErosionScore >= 40
+          ? 'Watch Out on Slopes'
+          : 'Low Wash-Away Risk';
+
+    const erosionTip =
+      telemetry.bareSoilDangerMonths.length > 0
+        ? `Heavy rain hits bare dirt in ${telemetry.bareSoilDangerMonths.join(', ')}. Keep roots or stalks covering the soil.`
+        : 'Soil stays fairly safe from washing away when plant cover stays on top.';
+
+    const getMonthRainLabel = (mm: number) => {
+      if (mm >= 115) return { text: 'Heavy Rain', color: 'bg-cyan-400', bars: 3 };
+      if (mm >= 55) return { text: 'Light Rain', color: 'bg-cyan-500/70', bars: 2 };
+      return { text: 'Dry', color: 'bg-slate-600', bars: 1 };
+    };
+
+    const activeRainLabel = getMonthRainLabel(inspectedMonth.gpmRainfallMm);
+
+    return (
+      <section
+        id="telemetry"
+        aria-label="Simple Field Check-Up"
+        className="scroll-mt-20 space-y-5"
+      >
+        <div>
+          <p className="text-xs font-mono text-emerald-400">
+            02. Simple Field Check-Up
+          </p>
+          <h2 className="text-xl font-semibold text-slate-100 mt-0.5">
+            What Weather &amp; Soil Look Like on Your Farm
+          </h2>
+        </div>
+
+        {/* 4 Plain-Language Status Cards (Zero Statistics) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+          <article className="bg-[#0e1513] border border-[#1f2e29] rounded-xl p-4 flex flex-col justify-between gap-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs text-slate-400 font-medium">Soil Moisture</p>
+              <Droplets className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
+            </div>
+            <p className="text-base font-semibold text-slate-100 leading-snug">{moistureHeadline}</p>
+            <p className="text-xs text-slate-400 leading-relaxed">{moistureTip}</p>
+          </article>
+
+          <article className="bg-[#0e1513] border border-[#1f2e29] rounded-xl p-4 flex flex-col justify-between gap-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs text-slate-400 font-medium">Sun &amp; Heat</p>
+              <Flame className="w-4 h-4 text-amber-400 shrink-0" aria-hidden="true" />
+            </div>
+            <p className="text-base font-semibold text-slate-100 leading-snug">{heatHeadline}</p>
+            <p className="text-xs text-slate-400 leading-relaxed">{heatTip}</p>
+          </article>
+
+          <article className="bg-[#0e1513] border border-[#1f2e29] rounded-xl p-4 flex flex-col justify-between gap-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs text-slate-400 font-medium">Rain &amp; Cold</p>
+              <CloudRain className="w-4 h-4 text-cyan-400 shrink-0" aria-hidden="true" />
+            </div>
+            <p className="text-base font-semibold text-slate-100 leading-snug">{rainHeadline}</p>
+            <p className="text-xs text-slate-400 leading-relaxed">{frostTip}</p>
+          </article>
+
+          <article className="bg-[#0e1513] border border-[#1f2e29] rounded-xl p-4 flex flex-col justify-between gap-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs text-slate-400 font-medium">Soil Wash-Away Risk</p>
+              <Mountain className="w-4 h-4 text-rose-400 shrink-0" aria-hidden="true" />
+            </div>
+            <p className="text-base font-semibold text-slate-100 leading-snug">{erosionHeadline}</p>
+            <p className="text-xs text-slate-400 leading-relaxed">{erosionTip}</p>
+          </article>
+        </div>
+
+        {/* Simple 12-Month Rain & Bare-Soil Strip (Zero Charts/Statistics) */}
+        <div className="bg-[#0e1513] border border-[#1f2e29] rounded-xl p-5 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-100">
+                When Rain &amp; Bare Soil Happen During the Year
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Tap any month below. Red months show when heavy rain can wash away bare, uncovered dirt.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-xs bg-cyan-400 inline-block" aria-hidden="true" />
+                Rainy Month
+              </span>
+              <span className="flex items-center gap-1.5 text-rose-300">
+                <span className="w-2.5 h-2.5 rounded-xs bg-rose-500 inline-block" aria-hidden="true" />
+                Bare-Soil Risk
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
+            {telemetry.monthly.map((m, idx) => {
+              const rainInfo = getMonthRainLabel(m.gpmRainfallMm);
+              const isSelected = inspectedMonth.monthIndex === idx;
+              return (
+                <button
+                  key={m.month}
+                  type="button"
+                  onClick={() => setHoveredMonthIdx(idx)}
+                  className={`rounded-lg p-2.5 border text-left transition-colors flex flex-col justify-between gap-2 cursor-pointer ${
+                    m.isBareSoilDanger
+                      ? isSelected
+                        ? 'bg-rose-950/60 border-rose-400'
+                        : 'bg-rose-950/35 border-rose-800/70 hover:border-rose-500'
+                      : isSelected
+                        ? 'bg-[#172520] border-emerald-400'
+                        : 'bg-[#111a17] border-[#21312c] hover:border-slate-500'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-100">{m.month}</span>
+                    {m.isBareSoilDanger && (
+                      <span className="w-2 h-2 rounded-full bg-rose-400" aria-label="Bare soil risk" />
+                    )}
+                  </div>
+                  <div className="flex items-end gap-1 h-4" aria-hidden="true">
+                    {[1, 2, 3].map((level) => (
+                      <span
+                        key={level}
+                        className={`flex-1 rounded-xs ${
+                          level <= rainInfo.bars
+                            ? (m.isBareSoilDanger ? 'bg-rose-400' : rainInfo.color)
+                            : 'bg-[#1d2b26]'
+                        }`}
+                        style={{ height: `${level * 33}%` }}
+                      />
+                    ))}
+                  </div>
+                  <span className={`text-[10px] leading-tight ${m.isBareSoilDanger ? 'text-rose-200 font-medium' : 'text-slate-400'}`}>
+                    {m.isBareSoilDanger ? 'Cover Soil!' : rainInfo.text}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="pt-3 border-t border-[#1b2924] flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="text-slate-200">
+              <strong className="text-emerald-300 mr-1.5">{inspectedMonth.month}:</strong>
+              <span>{activeRainLabel.text}</span>
+              <span className="mx-1.5 text-slate-500" aria-hidden="true">·</span>
+              <span>
+                {inspectedMonth.smapRootMoisturePct >= 55
+                  ? 'Soil holds good moisture'
+                  : inspectedMonth.smapRootMoisturePct >= 40
+                    ? 'Moderate soil moisture'
+                    : 'Dry soil month'}
+              </span>
+            </div>
+            {inspectedMonth.isBareSoilDanger ? (
+              <span className="text-rose-300 flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                Heavy rain hits bare ground here — keep plant cover or stalks on top.
+              </span>
+            ) : (
+              <span className="text-slate-400">
+                {telemetry.bareSoilDangerMonths.length > 0
+                  ? `Watch soil cover in: ${telemetry.bareSoilDangerMonths.join(', ')}`
+                  : 'Good year-round ground cover with your current crops.'}
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // SVG Chart Geometry (Scientist Mode)
   const chartW = 760;
   const chartH = 260;
   const padL = 44;

@@ -2,6 +2,7 @@ import type {
   CalibrationAnswer,
   CalibrationQuestion,
   FarmContext,
+  LanguageMode,
   NasaTelemetryPayload,
   RotationStrategy,
 } from '../types/agro';
@@ -28,12 +29,13 @@ export async function checkAiHealth(): Promise<{ ok: boolean; geminiConfigured: 
 export async function generateCalibrationQuestions(
   farmContext: FarmContext,
   nasaTelemetry: NasaTelemetryPayload,
+  languageMode: LanguageMode = 'scientist',
 ): Promise<{ questions: CalibrationQuestion[] } & AiServiceMeta> {
   try {
     const res = await fetch('/api/ai/calibrate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ farmContext, nasaTelemetry }),
+      body: JSON.stringify({ farmContext, nasaTelemetry, languageMode }),
     });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
@@ -46,7 +48,7 @@ export async function generateCalibrationQuestions(
     return data;
   } catch {
     return {
-      questions: buildDeterministicCalibrationQuestions(farmContext, nasaTelemetry),
+      questions: buildDeterministicCalibrationQuestions(farmContext, nasaTelemetry, languageMode),
       source: 'fallback',
       modelUsed: 'agro-deterministic',
     };
@@ -57,12 +59,13 @@ export async function generateRotationStrategies(
   farmContext: FarmContext,
   nasaTelemetry: NasaTelemetryPayload,
   calibrationAnswers: CalibrationAnswer[],
+  languageMode: LanguageMode = 'scientist',
 ): Promise<{ strategies: RotationStrategy[] } & AiServiceMeta> {
   try {
     const res = await fetch('/api/ai/strategies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ farmContext, nasaTelemetry, calibrationAnswers }),
+      body: JSON.stringify({ farmContext, nasaTelemetry, calibrationAnswers, languageMode }),
     });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
@@ -75,7 +78,7 @@ export async function generateRotationStrategies(
     return data;
   } catch {
     return {
-      strategies: buildDeterministicStrategies(farmContext, nasaTelemetry, calibrationAnswers),
+      strategies: buildDeterministicStrategies(farmContext, nasaTelemetry, calibrationAnswers, languageMode),
       source: 'fallback',
       modelUsed: 'agro-deterministic',
     };

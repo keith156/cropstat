@@ -111,9 +111,46 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
     setCoordError(null);
   }, [farm.lat, farm.lon]);
 
-  const phWarning = useMemo(() => computePhWarnings(farm.soilPh), [farm.soilPh]);
+  const isFarmer = languageMode === 'farmer';
+  const phWarning = useMemo(() => computePhWarnings(farm.soilPh, languageMode), [farm.soilPh, languageMode]);
 
   const phPercent = ((farm.soilPh - 4.0) / (8.5 - 4.0)) * 100;
+
+  const farmerElevationLabel =
+    farm.altitude < 600
+      ? 'Flat Lowland'
+      : farm.altitude < 1500
+        ? 'Mid Hills'
+        : farm.altitude < 2300
+          ? 'Highland Slope'
+          : 'High Mountains';
+
+  const farmerSoilSourLabel =
+    farm.soilPh < 5.0
+      ? 'Very Sour'
+      : farm.soilPh < 5.5
+        ? 'Slightly Sour'
+        : farm.soilPh <= 7.2
+          ? 'Balanced Soil'
+          : farm.soilPh <= 7.7
+            ? 'Slightly Chalky'
+            : 'Very Chalky';
+
+  const farmerTextureLabel: Record<SoilTexture, string> = {
+    Clay: 'Sticky Clay',
+    Loamy: 'Rich Loam',
+    Sandy: 'Loose Sandy',
+    'Volcanic Ash': 'Dark Volcanic',
+  };
+
+  const farmerPriorityLabel: Record<string, string> = {
+    'Conserve Water': 'Save Water',
+    'Fix Nitrogen': 'Build Rich Soil',
+    'Stop Slope Erosion': 'Stop Soil Wash-Away',
+    'Break Pest Cycles': 'Keep Pests Away',
+    'High Cash Income': 'Good Cash Income',
+    'Livestock Forage': 'Feed for Livestock',
+  };
 
   const handleCoordinateJump = (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,17 +204,19 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1b2924] pb-4">
         <div>
           <p className="text-xs font-mono text-emerald-400 tracking-wide">
-            01. {languageMode === 'farmer' ? 'Select Your Field & Soil Conditions' : 'Geospatial Target & Ground-Truth Parameters'}
+            01. {isFarmer ? 'Pick Your Farm & What You Grow' : 'Geospatial Target & Ground-Truth Parameters'}
           </p>
           <h2 className="text-lg font-semibold text-slate-100 mt-0.5">
             {farm.locationName}
           </h2>
         </div>
-        <div className="text-xs font-mono text-slate-400 tabular-nums">
-          <span>{farm.lat.toFixed(4)}°</span>
-          <span className="mx-1.5" aria-hidden="true">/</span>
-          <span>{farm.lon.toFixed(4)}°</span>
-        </div>
+        {!isFarmer && (
+          <div className="text-xs font-mono text-slate-400 tabular-nums">
+            <span>{farm.lat.toFixed(4)}°</span>
+            <span className="mx-1.5" aria-hidden="true">/</span>
+            <span>{farm.lon.toFixed(4)}°</span>
+          </div>
+        )}
       </div>
 
       {/* Quick Regional Presets */}
@@ -185,9 +224,11 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
             <Compass className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
-            Quick Regional Presets
+            {isFarmer ? 'Sample Farm Regions' : 'Quick Regional Presets'}
           </span>
-          <span className="text-xs text-slate-500">Or click anywhere on the map</span>
+          <span className="text-xs text-slate-500">
+            {isFarmer ? 'Or tap anywhere on the map' : 'Or click anywhere on the map'}
+          </span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2">
           {REGIONAL_PRESETS.map((preset) => {
@@ -285,7 +326,11 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
         </MapContainer>
         <div className="pointer-events-none absolute bottom-2.5 left-2.5 z-[400] bg-[#080c0b]/90 border border-[#22322d] px-2.5 py-1 rounded text-[11px] font-mono text-slate-300 flex items-center gap-1.5">
           <MapPin className="w-3 h-3 text-emerald-400" aria-hidden="true" />
-          <span>{isLoadingTelemetry ? 'Fetching NASA POWER + SRTM...' : 'Click map or drag pin to exact plot'}</span>
+          <span>
+            {isLoadingTelemetry
+              ? (isFarmer ? 'Checking weather & soil for this spot...' : 'Fetching NASA POWER + SRTM...')
+              : (isFarmer ? 'Tap map or drag pin to your farm' : 'Click map or drag pin to exact plot')}
+          </span>
         </div>
       </div>
 
@@ -296,27 +341,33 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
           <div className="flex items-center justify-between gap-3">
             <label htmlFor="altitude-slider" className="text-xs font-medium text-slate-200 flex items-center gap-1.5">
               <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" aria-hidden="true" />
-              {languageMode === 'farmer' ? 'Field Elevation (Altitude)' : 'SRTM 30m Elevation (m ASL)'}
+              {isFarmer ? 'How High Is Your Land?' : 'SRTM 30m Elevation (m ASL)'}
             </label>
-            <div className="flex items-center gap-1.5">
-              <input
-                id="altitude-number"
-                type="number"
-                min={0}
-                max={3500}
-                step={10}
-                value={farm.altitude}
-                aria-label="Altitude in meters"
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (Number.isFinite(val)) {
-                    onUpdateFarm({ altitude: Math.max(0, Math.min(3500, val)) });
-                  }
-                }}
-                className="w-20 bg-[#121c19] border border-[#253630] rounded px-2 py-1 text-right text-xs font-mono text-slate-100 tabular-nums focus:outline-none focus:border-emerald-500"
-              />
-              <span className="text-xs font-mono text-slate-400">m</span>
-            </div>
+            {isFarmer ? (
+              <span className="px-2 py-0.5 rounded bg-[#14201c] border border-[#263832] text-cyan-300 text-xs font-medium">
+                {farmerElevationLabel}
+              </span>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <input
+                  id="altitude-number"
+                  type="number"
+                  min={0}
+                  max={3500}
+                  step={10}
+                  value={farm.altitude}
+                  aria-label="Altitude in meters"
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (Number.isFinite(val)) {
+                      onUpdateFarm({ altitude: Math.max(0, Math.min(3500, val)) });
+                    }
+                  }}
+                  className="w-20 bg-[#121c19] border border-[#253630] rounded px-2 py-1 text-right text-xs font-mono text-slate-100 tabular-nums focus:outline-none focus:border-emerald-500"
+                />
+                <span className="text-xs font-mono text-slate-400">m</span>
+              </div>
+            )}
           </div>
           <input
             id="altitude-slider"
@@ -329,11 +380,13 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
             className="terra-slider w-full"
           />
           <div className="flex justify-between text-[11px] font-mono text-slate-500">
-            <span>0m Lowland</span>
+            <span>{isFarmer ? 'Flat Lowland' : '0m Lowland'}</span>
             <span>
-              {telemetry ? `SRTM Auto: ${telemetry.srtmAltitudeM}m` : '1,500m Mid'}
+              {isFarmer
+                ? 'Mid Hills'
+                : (telemetry ? `SRTM Auto: ${telemetry.srtmAltitudeM}m` : '1,500m Mid')}
             </span>
-            <span>3,500m Alpine</span>
+            <span>{isFarmer ? 'High Mountains' : '3,500m Alpine'}</span>
           </div>
         </div>
 
@@ -341,16 +394,16 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <label htmlFor="ph-slider" className="text-xs font-medium text-slate-200">
-              {languageMode === 'farmer' ? 'Soil Acidity / Alkalinity (pH)' : 'Topsoil pH (H₂O · SoilGrids 250m)'}
+              {isFarmer ? 'How Sour or Chalky Is Your Soil?' : 'Topsoil pH (H₂O · SoilGrids 250m)'}
             </label>
             <div className="flex items-center gap-2 text-xs font-mono tabular-nums">
-              {telemetry && (
+              {!isFarmer && telemetry && (
                 <span className="text-slate-500">
                   Est: {telemetry.soilGridsPh.toFixed(1)}
                 </span>
               )}
-              <span className="px-2 py-0.5 rounded bg-[#14201c] border border-[#263832] text-emerald-300 font-semibold">
-                pH {farm.soilPh.toFixed(1)}
+              <span className="px-2 py-0.5 rounded bg-[#14201c] border border-[#263832] text-emerald-300 font-semibold font-sans">
+                {isFarmer ? farmerSoilSourLabel : `pH ${farm.soilPh.toFixed(1)}`}
               </span>
             </div>
           </div>
@@ -380,6 +433,13 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
             onChange={(e) => onUpdateFarm({ soilPh: Number(e.target.value) })}
             className="terra-slider w-full"
           />
+          {isFarmer && (
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>Very Sour</span>
+              <span>Balanced</span>
+              <span>Very Chalky</span>
+            </div>
+          )}
 
           {/* Live Nutrient Lock-Up Warning */}
           <div
@@ -414,7 +474,7 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
         <div>
           <span className="block text-xs font-medium text-slate-200 mb-2 flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
-            Soil Texture Class
+            {isFarmer ? 'What Does Your Soil Feel Like?' : 'Soil Texture Class'}
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2">
             {SOIL_TEXTURE_OPTIONS.map((texture: SoilTexture) => {
@@ -430,7 +490,7 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
                       : 'bg-[#121c19] border-[#21312c] text-slate-300 hover:border-slate-600'
                   }`}
                 >
-                  {texture}
+                  {isFarmer ? farmerTextureLabel[texture] : texture}
                 </button>
               );
             })}
@@ -440,7 +500,7 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
         {/* Current Crops Planted */}
         <div>
           <span className="block text-xs font-medium text-slate-200 mb-2">
-            Current Crops on This Field
+            {isFarmer ? 'What Crops Do You Grow Now?' : 'Current Crops on This Field'}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {allCropsList.map((crop) => {
@@ -484,7 +544,7 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
         {/* Farmer Priority Weight Chips */}
         <div>
           <span className="block text-xs font-medium text-slate-200 mb-2">
-            Farmer Rotation Priorities
+            {isFarmer ? 'What Matters Most to You?' : 'Farmer Rotation Priorities'}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {PRIORITY_OPTIONS.map((priority) => {
@@ -501,7 +561,7 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
                       : 'bg-[#121c19] border-[#22322d] text-slate-400 hover:text-slate-200 hover:border-slate-600'
                   }`}
                 >
-                  {priority}
+                  {isFarmer ? (farmerPriorityLabel[priority] ?? priority) : priority}
                 </button>
               );
             })}
@@ -520,8 +580,8 @@ export const FarmMapAndInputs: React.FC<FarmMapAndInputsProps> = ({
           <Sparkles className="w-4 h-4" aria-hidden="true" />
           <span>
             {isLoadingCalibration
-              ? 'Synthesizing NASA Telemetry...'
-              : 'Analyze Field & Calibrate with NASA Data'}
+              ? (isFarmer ? 'Preparing 3 Simple Questions...' : 'Synthesizing NASA Telemetry...')
+              : (isFarmer ? 'Ask Me 3 Simple Questions' : 'Analyze Field & Calibrate with NASA Data')}
           </span>
         </button>
       </div>

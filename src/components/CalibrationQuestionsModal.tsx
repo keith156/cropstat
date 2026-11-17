@@ -23,6 +23,7 @@ export const CalibrationQuestionsModal: React.FC<CalibrationQuestionsModalProps>
 }) => {
   if (questions.length === 0) return null;
 
+  const isFarmer = languageMode === 'farmer';
   const allAnswered = questions.every((q) => (answers[q.id] ?? '').trim().length > 0);
 
   return (
@@ -36,17 +37,21 @@ export const CalibrationQuestionsModal: React.FC<CalibrationQuestionsModalProps>
           <p className="text-xs font-mono text-emerald-400 flex items-center gap-1.5">
             <SatelliteDish className="w-3.5 h-3.5" aria-hidden="true" />
             <span>
-              03. {languageMode === 'farmer' ? '3 Quick Questions Satellites Cannot See' : 'Stage A · Satellite-to-Ground Calibration'}
+              03. {isFarmer ? '3 Quick Questions About Your Farm' : 'Stage A · Satellite-to-Ground Calibration'}
             </span>
           </p>
           <h2 className="text-xl font-semibold text-slate-100 mt-1">
-            Verify Your Local Field Reality Before Generating Crop Rotations
+            {isFarmer
+              ? 'Tell Us 3 Simple Things About Your Land'
+              : 'Verify Your Local Field Reality Before Generating Crop Rotations'}
           </h2>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Satellites measure regional moisture and rain from orbit, but only you know how crop residues are handled, what amendments are affordable, and which crops sell nearby.
+            {isFarmer
+              ? 'Tap the choice closest to what you do on your farm, or write your own short answer.'
+              : 'Satellites measure regional moisture and rain from orbit, but only you know how crop residues are handled, what amendments are affordable, and which crops sell nearby.'}
           </p>
         </div>
-        <span className="text-xs font-mono text-slate-400">{aiSourceLabel}</span>
+        {!isFarmer && <span className="text-xs font-mono text-slate-400">{aiSourceLabel}</span>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -58,10 +63,16 @@ export const CalibrationQuestionsModal: React.FC<CalibrationQuestionsModalProps>
               className="bg-[#111a17] border border-[#22322d] rounded-xl p-4 flex flex-col justify-between gap-4"
             >
               <div className="space-y-2.5">
-                <div className="text-[11px] font-mono text-cyan-300 leading-snug">
-                  <span className="text-emerald-400 font-semibold mr-1.5">0{index + 1}.</span>
-                  {q.satelliteTrigger}
-                </div>
+                {isFarmer ? (
+                  <div className="text-xs font-semibold text-emerald-400">
+                    Question {index + 1} of {questions.length}
+                  </div>
+                ) : (
+                  <div className="text-[11px] font-mono text-cyan-300 leading-snug">
+                    <span className="text-emerald-400 font-semibold mr-1.5">0{index + 1}.</span>
+                    {q.satelliteTrigger}
+                  </div>
+                )}
 
                 <h3 className="text-sm font-semibold text-slate-100 leading-snug">
                   {q.question}
@@ -104,7 +115,7 @@ export const CalibrationQuestionsModal: React.FC<CalibrationQuestionsModalProps>
                     type="text"
                     value={currentAnswer}
                     onChange={(e) => onChangeAnswer(q.id, e.target.value)}
-                    placeholder="Or type your exact field practice..."
+                    placeholder={isFarmer ? 'Or write your own short answer...' : 'Or type your exact field practice...'}
                     className="w-full bg-[#0a100e] border border-[#243630] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -117,8 +128,12 @@ export const CalibrationQuestionsModal: React.FC<CalibrationQuestionsModalProps>
       <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
         <p className="text-xs text-slate-400">
           {allAnswered
-            ? 'All 3 calibration checks answered — ready to synthesize 3 tailored rotation strategies.'
-            : 'Select a quick option or type an answer for all 3 questions to continue.'}
+            ? (isFarmer
+                ? 'All 3 questions answered — click the button to see your 3 crop plans.'
+                : 'All 3 calibration checks answered — ready to synthesize 3 tailored rotation strategies.')
+            : (isFarmer
+                ? 'Pick or type an answer for all 3 questions to see your plans.'
+                : 'Select a quick option or type an answer for all 3 questions to continue.')}
         </p>
 
         <button
@@ -129,8 +144,8 @@ export const CalibrationQuestionsModal: React.FC<CalibrationQuestionsModalProps>
         >
           <span>
             {isGeneratingStrategies
-              ? 'Generating 3 Rotation Strategies...'
-              : 'Generate 3 Resilient Rotation Strategies'}
+              ? (isFarmer ? 'Making Your 3 Simple Crop Plans...' : 'Generating 3 Rotation Strategies...')
+              : (isFarmer ? 'Show My 3 Simple Crop Plans' : 'Generate 3 Resilient Rotation Strategies')}
           </span>
           <ArrowRight className="w-4 h-4" aria-hidden="true" />
         </button>

@@ -28,6 +28,30 @@ export const ClimateStressTester: React.FC<ClimateStressTesterProps> = ({
   const isFarmer = languageMode === 'farmer';
   const isModified = tempDeltaC !== 0 || rainDeltaPct !== 0;
 
+  const farmerTempLabel =
+    tempDeltaC === 0
+      ? 'Normal Heat'
+      : tempDeltaC <= 1.4
+        ? 'A Bit Hotter'
+        : tempDeltaC <= 2.6
+          ? 'Much Hotter'
+          : 'Extreme Heat';
+
+  const farmerRainLabel =
+    rainDeltaPct === 0
+      ? 'Normal Rain'
+      : rainDeltaPct <= -25
+        ? 'Much Drier'
+        : rainDeltaPct < 0
+          ? 'Drier'
+          : 'Wetter';
+
+  const farmerStatusWord = (status?: StressTestResult['survivalStatus']) => {
+    if (status === 'Critical Risk') return 'Risky';
+    if (status === 'Strained') return 'Needs Care';
+    return 'Holds Up';
+  };
+
   return (
     <section
       id="stress-test"
@@ -39,10 +63,10 @@ export const ClimateStressTester: React.FC<ClimateStressTesterProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center gap-5 flex-1">
           <div className="shrink-0">
             <p className="text-[11px] font-mono text-amber-300 uppercase tracking-wider">
-              {isFarmer ? 'Future Weather Stress-Test' : 'Live Climate Shock Simulator'}
+              {isFarmer ? 'Test Tough Weather' : 'Live Climate Shock Simulator'}
             </p>
             <h3 className="text-sm font-semibold text-slate-100">
-              {isFarmer ? 'Test How Rotations Survive Heat & Drought' : 'Temperature & Rainfall Anomaly Sensitivity'}
+              {isFarmer ? 'See How Each Plan Handles Heat & Drought' : 'Temperature & Rainfall Anomaly Sensitivity'}
             </h3>
           </div>
 
@@ -52,10 +76,10 @@ export const ClimateStressTester: React.FC<ClimateStressTesterProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <label htmlFor="stress-temp-slider" className="text-slate-300 flex items-center gap-1.5">
                   <ThermometerSun className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
-                  <span>Heat Shift</span>
+                  <span>{isFarmer ? 'If It Gets Hotter' : 'Heat Shift'}</span>
                 </label>
                 <span className="font-mono font-semibold text-amber-300 tabular-nums">
-                  +{tempDeltaC.toFixed(1)}°C
+                  {isFarmer ? farmerTempLabel : `+${tempDeltaC.toFixed(1)}°C`}
                 </span>
               </div>
               <input
@@ -75,10 +99,10 @@ export const ClimateStressTester: React.FC<ClimateStressTesterProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <label htmlFor="stress-rain-slider" className="text-slate-300 flex items-center gap-1.5">
                   <CloudDrizzle className="w-3.5 h-3.5 text-cyan-400" aria-hidden="true" />
-                  <span>Rainfall Shift</span>
+                  <span>{isFarmer ? 'If Rain Changes' : 'Rainfall Shift'}</span>
                 </label>
                 <span className="font-mono font-semibold text-cyan-300 tabular-nums">
-                  {rainDeltaPct >= 0 ? `+${rainDeltaPct}%` : `${rainDeltaPct}%`}
+                  {isFarmer ? farmerRainLabel : (rainDeltaPct >= 0 ? `+${rainDeltaPct}%` : `${rainDeltaPct}%`)}
                 </span>
               </div>
               <input
@@ -101,7 +125,9 @@ export const ClimateStressTester: React.FC<ClimateStressTesterProps> = ({
             {strategies.map((strat, idx) => {
               const res = stressResults[strat.id];
               const score = res ? res.adjustedSuitabilityScore : strat.suitabilityScore;
-              const shortTitle = idx === 0 ? 'Baseline' : idx === 1 ? 'Regenerative' : 'Hybrid';
+              const shortTitle = isFarmer
+                ? (idx === 0 ? 'Usual Way' : idx === 1 ? 'Soil-Saving' : 'Balanced')
+                : (idx === 0 ? 'Baseline' : idx === 1 ? 'Regenerative' : 'Hybrid');
               const statusColor =
                 res?.survivalStatus === 'Critical Risk'
                   ? 'text-rose-400'
@@ -115,9 +141,17 @@ export const ClimateStressTester: React.FC<ClimateStressTesterProps> = ({
                   className="px-2.5 py-1.5 rounded-lg bg-[#121c19] border border-[#22322d]"
                 >
                   <span className="text-slate-400 mr-1.5">{shortTitle}:</span>
-                  <span className={`font-bold ${statusColor}`}>{score}</span>
-                  {res && isModified && (
-                    <span className="text-slate-400 ml-1">({res.yieldRetentionPct}%)</span>
+                  {isFarmer ? (
+                    <span className={`font-semibold font-sans ${statusColor}`}>
+                      {farmerStatusWord(res?.survivalStatus)}
+                    </span>
+                  ) : (
+                    <>
+                      <span className={`font-bold ${statusColor}`}>{score}</span>
+                      {res && isModified && (
+                        <span className="text-slate-400 ml-1">({res.yieldRetentionPct}%)</span>
+                      )}
+                    </>
                   )}
                 </div>
               );

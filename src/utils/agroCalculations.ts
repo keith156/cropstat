@@ -3,6 +3,7 @@ import type {
   CalibrationAnswer,
   CalibrationQuestion,
   FarmContext,
+  LanguageMode,
   MonthlyClimatePoint,
   NasaTelemetryPayload,
   PhWarningInfo,
@@ -79,7 +80,43 @@ export function parseAndValidateCoordinates(
 /**
  * Evaluates Soil pH status and returns actionable agronomic nutrient lock-up warnings.
  */
-export function computePhWarnings(soilPh: number): PhWarningInfo {
+export function computePhWarnings(soilPh: number, languageMode: LanguageMode = 'scientist'): PhWarningInfo {
+  if (languageMode === 'farmer') {
+    if (soilPh < 5.0) {
+      return {
+        severity: 'critical',
+        label: 'Very Sour Soil · Crops Struggle to Feed',
+        detail: 'Very sour soil makes it hard for beans and maize to take up plant food. Mixing in compost, animal manure, or farm lime helps roots grow much stronger.',
+      };
+    }
+    if (soilPh < 5.5) {
+      return {
+        severity: 'caution',
+        label: 'Slightly Sour Soil · Needs Organic Care',
+        detail: 'Beans and cereals may grow slower here without compost, manure, or wood ash. Hardy crops like cassava, cowpeas, and coffee still do well.',
+      };
+    }
+    if (soilPh <= 7.2) {
+      return {
+        severity: 'optimal',
+        label: 'Healthy Balanced Soil',
+        detail: 'Your soil has a good natural balance. Most food crops, beans, and soil-saving cover plants can easily take up water and nutrients here.',
+      };
+    }
+    if (soilPh <= 7.7) {
+      return {
+        severity: 'caution',
+        label: 'Slightly Chalky Soil · Leaves May Yellow',
+        detail: 'Some crops need extra compost or manure to stay deep green here. Hardy grains like sorghum, barley, and chickpeas handle this soil well.',
+      };
+    }
+    return {
+      severity: 'critical',
+      label: 'Very Chalky Soil · Use Hardy Crops & Compost',
+      detail: 'Strong chalky soil can turn maize and bean leaves yellow. Add plenty of compost or manure and choose hardy, deep-rooting crops.',
+    };
+  }
+
   if (soilPh < 5.0) {
     return {
       severity: 'critical',
@@ -323,7 +360,65 @@ export function evaluateClimateStressTest(
 export function buildDeterministicCalibrationQuestions(
   farm: FarmContext,
   telemetry: NasaTelemetryPayload,
+  languageMode: LanguageMode = 'scientist',
 ): CalibrationQuestion[] {
+  if (languageMode === 'farmer') {
+    const mainCrop = farm.currentCrops[0] || 'your main crop';
+    const placeShort = farm.locationName.split(',')[0];
+    const isSour = farm.soilPh < 5.6;
+    const isChalky = farm.soilPh > 7.4;
+
+    return [
+      {
+        id: 'q-residue-erosion',
+        satelliteTrigger: 'Soil protection after harvest',
+        question: `After harvesting ${mainCrop}, what do you usually do with the leftover stalks and leaves before the next rains start?`,
+        whyWeAsk: 'Keeping stalks on the ground acts like a blanket so heavy rain cannot wash away your best topsoil.',
+        quickOptions: [
+          'Leave stalks on the field as mulch',
+          'Feed stalks to cows or goats',
+          'Clear or burn them before digging',
+          'Turn them into compost for planting',
+        ],
+      },
+      {
+        id: 'q-soil-inputs',
+        satelliteTrigger: 'Soil care and water access',
+        question: isSour
+          ? 'Your area can have sour soil, which makes beans grow slower. What is easiest for you to add to your soil?'
+          : isChalky
+            ? 'Your area can have chalky soil. What can you easily add or use to keep your soil healthy?'
+            : 'When dry weeks come between rains, what can you use to help your crops hold water?',
+        whyWeAsk: 'We only want to suggest crops and soil tips that you can easily afford and find near your home.',
+        quickOptions: isSour
+          ? [
+              'Animal manure or compost',
+              'Farm lime from an agro-shop',
+              'Cooking wood ash',
+              'Nothing extra — stick to hardy crops',
+            ]
+          : [
+              'Animal manure or compost',
+              'Rainwater only — no watering tools',
+              'Small watering, furrow, or drip pipes',
+              'Some fertilizer plus plant mulch',
+            ],
+      },
+      {
+        id: 'q-market-pest',
+        satelliteTrigger: 'Food and local market choice',
+        question: `Which extra bean, pea, or soil-building crop is easy to eat at home or sell near ${placeShort}?`,
+        whyWeAsk: 'A good planting plan must give your family reliable food or cash — not crops nobody wants to buy.',
+        quickOptions: [
+          'Beans, soybeans, or groundnuts',
+          'Hardy sorghum, millet, or cowpeas',
+          'Cover beans or forage for livestock',
+          'Cash vegetables or potatoes',
+        ],
+      },
+    ];
+  }
+
   const bareMonths = telemetry.bareSoilDangerMonths.length > 0
     ? telemetry.bareSoilDangerMonths.join(', ')
     : telemetry.smapDryMonths.slice(0, 2).join(', ') || 'transition months';
@@ -395,6 +490,7 @@ export function buildDeterministicStrategies(
   farm: FarmContext,
   telemetry: NasaTelemetryPayload,
   answers: CalibrationAnswer[],
+  languageMode: LanguageMode = 'scientist',
 ): RotationStrategy[] {
   const mainCrop = farm.currentCrops[0] || 'Maize';
   const secondaryCrop = farm.currentCrops[1] || 'Beans';
@@ -520,6 +616,123 @@ export function buildDeterministicStrategies(
     76,
     93,
   );
+
+  if (languageMode === 'farmer') {
+    const bareMonthNames = telemetry.bareSoilDangerMonths.length > 0
+      ? telemetry.bareSoilDangerMonths.join(' and ')
+      : 'the dry-to-rainy changeover';
+    const dryMonthNames = telemetry.smapDryMonths.length > 0
+      ? telemetry.smapDryMonths.join(', ')
+      : 'the dry months';
+
+    return [
+      {
+        id: 'baseline-continuation',
+        name: 'Keep Your Current Way',
+        tagline: `What happens if you keep planting ${farm.currentCrops.join(' + ') || 'the same crops'} with no changes`,
+        badgeColor: 'amber',
+        suitabilityScore: baselineSuitability,
+        monthlyCalendar: buildBaselineCalendar(),
+        whySuggested: `Shows what happens to your soil and harvests over the next few seasons if ${farm.currentCrops.join(' and ') || 'your usual crops'} stay the same and the ground sits bare before heavy rains.`,
+        nasaEvidenceUsed: [
+          `Heavy rains around ${bareMonthNames} hit bare, uncovered soil and can wash away your richest topsoil.`,
+          `Soil dries out during ${dryMonthNames}, leaving shallow crops thirsty.`,
+          `Planting the exact same crop every season slowly tires out the soil and invites more pests.`,
+        ],
+        soilAndAgronomicMechanics: {
+          phCompatibility: isAcidic
+            ? 'Because the soil is slightly sour, growing the same cereal every season without manure or lime makes yields drop faster.'
+            : isAlkaline
+              ? 'Repeating the same crop on chalky soil makes it harder for plants to stay green without added compost.'
+              : 'Your soil balance starts out fine, but repeating the same crop slowly uses up plant food.',
+          nitrogenCycling: 'Soil loses natural fertility each year if stalks are cleared or burned after harvest.',
+          erosionAndInfiltration: 'Bare dirt between seasons crusts over and lets rainwater run off instead of soaking in.',
+          pestCycleDisruption: 'Pests, weeds, and stem borers stay in the field year-round because their favorite crop never changes.',
+        },
+        impactMetrics: {
+          soilHealthScore: 38,
+          waterConservationScore: 41,
+          erosionReductionScore: 32,
+          nitrogenBalanceScore: 34,
+          marketResilienceScore: 54,
+        },
+        informationGapsAndRisks: [
+          'Check if your soil has a hard layer under the top spade depth by digging a small test hole.',
+          'Fertilizer costs may rise each year to get the same harvest if no cover crops are added.',
+        ],
+      },
+      {
+        id: 'soil-regenerative-shield',
+        name: 'Soil-Saving & Moisture Plan',
+        tagline: `Keep living cover on the field with ${regenerativeLegume} + ${mainCrop}`,
+        badgeColor: 'emerald',
+        suitabilityScore: regenSuitability,
+        monthlyCalendar: buildRegenerativeCalendar(),
+        whySuggested: 'Keeps roots and green leaves protecting your dirt every month of the year so heavy rain soaks into the ground instead of washing soil away.',
+        nasaEvidenceUsed: [
+          `Living cover crops shield the dirt during ${bareMonthNames} when heavy rains arrive.`,
+          `Leaves and roots shade the ground and hold moisture longer through ${dryMonthNames}.`,
+          'Legume plants naturally put plant food back into the soil for your next main crop.',
+        ],
+        soilAndAgronomicMechanics: {
+          phCompatibility: isAcidic
+            ? `Uses hardy ${regenerativeLegume} that still grows well in sour soil, especially when paired with manure, ash, or lime.`
+            : isAlkaline
+              ? `Uses deep-rooting ${regenerativeLegume} and organic mulch to help unlock nutrients in chalky soil.`
+              : 'Matches your balanced soil well so beans and cover crops build rich, dark topsoil naturally.',
+          nitrogenCycling: 'Cover beans and relay legumes naturally feed the soil so your next maize or cereal crop needs less fertilizer.',
+          erosionAndInfiltration: 'Deep roots break up packed dirt so rainwater sinks down to the roots instead of running downhill.',
+          pestCycleDisruption: 'Switching plant families between seasons breaks pest and weed cycles naturally.',
+        },
+        impactMetrics: {
+          soilHealthScore: 93,
+          waterConservationScore: 90,
+          erosionReductionScore: 94,
+          nitrogenBalanceScore: 92,
+          marketResilienceScore: 76,
+        },
+        informationGapsAndRisks: [
+          'Make sure cover crop seeds are easy to find at your local seed shop before the rains start.',
+          'If neighbors graze cattle on open fields in the dry season, plan how to protect your cover strips.',
+        ],
+      },
+      {
+        id: 'climate-adaptive-hybrid',
+        name: 'Balanced Income & Hardy Plan',
+        tagline: `Steady harvests + fast-growing ${resilientCashCrop}`,
+        badgeColor: 'cyan',
+        suitabilityScore: hybridSuitability,
+        monthlyCalendar: buildHybridCalendar(),
+        whySuggested: 'Mixes reliable food and cash crops with fast-maturing, heat-hardy varieties so one bad dry spell does not wipe out your whole harvest.',
+        nasaEvidenceUsed: [
+          'Plants fast-maturing crops earlier so grain fills before the hottest, driest weeks arrive.',
+          'Alternates strips of food and cash crops so soil stays partly covered even after one crop is harvested.',
+          `Fits your local rainy seasons while protecting moisture during ${dryMonthNames}.`,
+        ],
+        soilAndAgronomicMechanics: {
+          phCompatibility: isAcidic
+            ? `Picks hardy cash crops (${resilientCashCrop}) that handle sour soil while compost slowly improves the land.`
+            : isAlkaline
+              ? 'Uses deep-rooting, chalk-tolerant crops that reach moisture below the topsoil.'
+              : 'Pairs shallow food crops with deeper pulse crops so they share soil water and food smoothly.',
+          nitrogenCycling: 'Mixed bean and pulse strips replace much of the plant food taken up by your cash harvest.',
+          erosionAndInfiltration: 'Planting in strips and keeping stalk mulch between rows slows down storm runoff.',
+          pestCycleDisruption: 'Growing two or three different crops together confuses pests and lowers the chance of losing everything.',
+        },
+        impactMetrics: {
+          soilHealthScore: 79,
+          waterConservationScore: 84,
+          erosionReductionScore: 81,
+          nitrogenBalanceScore: 77,
+          marketResilienceScore: 92,
+        },
+        informationGapsAndRisks: [
+          'Check who will buy your extra beans or cash crop locally and keep dry storage bags ready.',
+          'Ask a local farm advisor about the best planting week if the rains start late this year.',
+        ],
+      },
+    ];
+  }
 
   return [
     {
