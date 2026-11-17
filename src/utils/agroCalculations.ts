@@ -267,7 +267,7 @@ export function computeNdviAndBareSoilWindows(
 }
 
 /**
- * Classifies SoilGrids clay/sand percentages into Crop Stat's 4 soil texture classes.
+ * Classifies SoilGrids clay/sand percentages into Crop Sat's 4 soil texture classes.
  */
 export function classifySoilTexture(clayPct: number, sandPct: number, socGKg: number): SoilTexture {
   if (socGKg >= 35 && clayPct >= 20 && sandPct <= 45) return 'Volcanic Ash';

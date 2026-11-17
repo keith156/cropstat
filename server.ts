@@ -363,7 +363,7 @@ Rules:
   }
 
   httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`Crop Stat server running on http://localhost:${PORT}`);
+    console.log(`Crop Sat server running on http://localhost:${PORT}`);
   });
 }
 

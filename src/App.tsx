@@ -235,7 +235,7 @@ export default function App() {
             href="#top"
             className="text-lg font-bold tracking-tight text-slate-50 whitespace-nowrap shrink-0"
           >
-            Crop Stat
+            Crop Sat
           </a>
 
           {languageMode === 'farmer' ? (
@@ -508,8 +508,8 @@ export default function App() {
         <div className="max-w-[1440px] mx-auto px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
           <span>
             {languageMode === 'farmer'
-              ? 'Crop Stat · Simple Farm Planning Helper'
-              : 'Crop Stat Agronomic Decision-Support Co-Pilot'}
+              ? 'Crop Sat · Simple Farm Planning Helper'
+              : 'Crop Sat Agronomic Decision-Support Co-Pilot'}
           </span>
           <span>
             {languageMode === 'farmer'
